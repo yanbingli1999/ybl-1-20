@@ -5,7 +5,6 @@ import { Activity, Scan } from 'lucide-react'
 export default function SymptomCard() {
   const activeCaseId = useGameStore(s => s.activeCaseId)
   const cases = useGameStore(s => s.cases)
-  const gamePhase = useGameStore(s => s.gamePhase)
 
   const activeCase = cases.find(c => c.id === activeCaseId)
 

@@ -1,5 +1,4 @@
 import { useGameStore } from '@/store/useGameStore'
-import { getDisease } from '@/data/gameData'
 import { Wrench, CheckCircle, AlertTriangle, Loader } from 'lucide-react'
 
 export default function EquipmentPanel() {

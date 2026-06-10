@@ -7,10 +7,11 @@ import {
   type DiagnosisResult,
   type ActionType,
   type AccidentType,
+  type TestScenario,
   initialEquipment,
   generatePetCase,
   generateInitialCases,
-  generateTestCases,
+  defaultInventory,
   getDisease,
   getMedicine,
 } from '@/data/gameData'
@@ -20,6 +21,7 @@ interface GameState {
   activeCaseId: string | null
   player: Player
   equipment: Equipment[]
+  inventory: Record<string, number>
   gamePhase: GamePhase
   accidentType: AccidentType | null
   diagnosisResult: DiagnosisResult | null
@@ -41,7 +43,7 @@ interface GameState {
   dismissResult: () => void
   dismissAccident: () => void
   generateNewCase: () => void
-  loadTestCases: () => void
+  loadScenario: (scenario: TestScenario) => void
   resetGame: () => void
 }
 
@@ -87,6 +89,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   activeCaseId: null,
   player: { ...initialPlayer },
   equipment: initialEquipment.map(e => ({ ...e })),
+  inventory: { ...defaultInventory },
   gamePhase: 'idle',
   accidentType: null,
   diagnosisResult: null,
@@ -154,12 +157,43 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!action) return
 
     const medicine = getMedicine(id)
-    if (medicine && state.player.coins < medicine.cost) {
+    if (!medicine) return
+
+    if ((state.inventory[id] ?? 0) <= 0) {
       const activeCase = state.cases.find(c => c.id === state.activeCaseId)
       if (!activeCase) return
 
       const disease = getDisease(activeCase.diseaseId)
-      const itemType = action === 'feed' ? '食物' : '药品'
+      const result: DiagnosisResult = {
+        success: false,
+        diseaseName: disease?.name || '',
+        actionTaken: action,
+        correctAction: disease?.correctAction || 'medicate',
+        medicineUsed: id,
+        correctMedicine: disease?.medicineId || null,
+        coinsEarned: 0,
+        medicineCost: medicine.cost,
+        accidentType: null,
+        damagedEquipment: null,
+        message: `库存不足！${medicine.name} 已用完，无法使用`,
+        errorType: 'funds',
+      }
+
+      set({
+        gamePhase: 'result',
+        diagnosisResult: result,
+        showMedicineSelector: false,
+        selectedMedicineId: null,
+        pendingAction: null,
+      })
+      return
+    }
+
+    if (state.player.coins < medicine.cost) {
+      const activeCase = state.cases.find(c => c.id === state.activeCaseId)
+      if (!activeCase) return
+
+      const disease = getDisease(activeCase.diseaseId)
       const result: DiagnosisResult = {
         success: false,
         diseaseName: disease?.name || '',
@@ -249,6 +283,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         errorType: null,
       }
 
+      const updatedInventory = medicineId
+        ? { ...state.inventory, [medicineId]: Math.max(0, (state.inventory[medicineId] || 0) - 1) }
+        : state.inventory
+
       set({
         cases: updatedCases,
         player: {
@@ -259,6 +297,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           cured: state.player.cured + 1,
           totalIncome: state.player.totalIncome + coinsEarned,
         },
+        inventory: updatedInventory,
         gamePhase: 'result',
         diagnosisResult: result,
         showMedicineSelector: false,
@@ -310,9 +349,14 @@ export const useGameStore = create<GameState>((set, get) => ({
         errorType,
       }
 
+      const updatedInventory = medicineId
+        ? { ...state.inventory, [medicineId]: Math.max(0, (state.inventory[medicineId] || 0) - 1) }
+        : state.inventory
+
       set({
         cases: updatedCases,
         equipment: updatedEquipment,
+        inventory: updatedInventory,
         player: {
           ...state.player,
           coins: Math.max(0, state.player.coins - totalDeduction),
@@ -382,13 +426,28 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ cases: [...state.cases, newCase] })
   },
 
-  loadTestCases: () => {
+  loadScenario: (scenario: TestScenario) => {
+    const updatedEquipment = initialEquipment.map(e => ({
+      ...e,
+      status: scenario.equipmentStatus[e.id] === 'damaged' ? 'damaged' as const : 'normal' as const,
+    }))
+
     set({
-      cases: generateTestCases(),
+      cases: scenario.cases.map(c => ({ ...c })),
       activeCaseId: null,
+      player: { ...initialPlayer, coins: scenario.coins },
+      equipment: updatedEquipment,
+      inventory: { ...scenario.inventory },
       gamePhase: 'idle',
       accidentType: null,
       diagnosisResult: null,
+      actionCooldowns: {
+        examine: 0,
+        medicate: 0,
+        inject: 0,
+        feed: 0,
+        isolate: 0,
+      },
       showMedicineSelector: false,
       selectedMedicineId: null,
       pendingAction: null,
@@ -401,6 +460,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       activeCaseId: null,
       player: { ...initialPlayer },
       equipment: initialEquipment.map(e => ({ ...e })),
+      inventory: { ...defaultInventory },
       gamePhase: 'idle',
       accidentType: null,
       diagnosisResult: null,

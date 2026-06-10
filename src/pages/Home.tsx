@@ -5,16 +5,18 @@ import AccidentOverlay from '@/components/AccidentOverlay'
 import EquipmentPanel from '@/components/EquipmentPanel'
 import PlayerProgress from '@/components/PlayerProgress'
 import DiagnosisResult from '@/components/DiagnosisResult'
+import ScenarioDrawer from '@/components/ScenarioDrawer'
 import { useGameStore } from '@/store/useGameStore'
 import { getBreed } from '@/data/gameData'
 import { Cross, Zap, FlaskConical } from 'lucide-react'
+import { useState } from 'react'
 
 export default function Home() {
   const activeCaseId = useGameStore(s => s.activeCaseId)
   const cases = useGameStore(s => s.cases)
   const generateNewCase = useGameStore(s => s.generateNewCase)
-  const loadTestCases = useGameStore(s => s.loadTestCases)
   const resetGame = useGameStore(s => s.resetGame)
+  const [scenarioOpen, setScenarioOpen] = useState(false)
 
   const activeCase = cases.find(c => c.id === activeCaseId)
   const breed = activeCase ? getBreed(activeCase.breedId) : null
@@ -39,11 +41,11 @@ export default function Home() {
             <span>在线</span>
           </div>
           <button
-            onClick={loadTestCases}
+            onClick={() => setScenarioOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-900/30 border border-purple-700/30 text-purple-400 text-xs hover:bg-purple-900/50 transition-colors"
           >
             <FlaskConical className="w-3 h-3" />
-            测试病例
+            测试场景
           </button>
           <button
             onClick={generateNewCase}
@@ -118,6 +120,7 @@ export default function Home() {
 
       <AccidentOverlay />
       <DiagnosisResult />
+      <ScenarioDrawer open={scenarioOpen} onClose={() => setScenarioOpen(false)} />
     </div>
   )
 }

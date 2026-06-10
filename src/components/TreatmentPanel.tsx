@@ -17,10 +17,10 @@ export default function TreatmentPanel() {
   const activeCaseId = useGameStore(s => s.activeCaseId)
   const cases = useGameStore(s => s.cases)
   const equipment = useGameStore(s => s.equipment)
+  const inventory = useGameStore(s => s.inventory)
   const gamePhase = useGameStore(s => s.gamePhase)
   const showMedicineSelector = useGameStore(s => s.showMedicineSelector)
   const pendingAction = useGameStore(s => s.pendingAction)
-  const loadTestCases = useGameStore(s => s.loadTestCases)
   const examine = useGameStore(s => s.examine)
   const medicate = useGameStore(s => s.medicate)
   const inject = useGameStore(s => s.inject)
@@ -107,23 +107,34 @@ export default function TreatmentPanel() {
           </button>
           <h4 className="text-xs text-purple-400 mb-2 font-display tracking-wide">{selectorTitle}</h4>
           <div className="grid grid-cols-1 gap-1.5">
-            {medicines.map(med => (
-              <button
-                key={med.id}
-                onClick={() => selectMedicine(med.id)}
-                className="flex items-center gap-3 p-2 rounded-lg bg-gray-800/60 border border-gray-700/40 hover:border-purple-600/40 transition-all text-left"
-              >
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: med.color, boxShadow: `0 0 8px ${med.color}40` }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs text-gray-200">{med.name}</div>
-                  <div className="text-[10px] text-gray-500">{med.effect}</div>
-                </div>
-                <span className="text-[10px] text-yellow-500">{med.cost} ⬡</span>
-              </button>
-            ))}
+            {medicines.map(med => {
+              const stock = inventory[med.id] ?? 0
+              const outOfStock = stock <= 0
+              return (
+                <button
+                  key={med.id}
+                  onClick={() => !outOfStock && selectMedicine(med.id)}
+                  disabled={outOfStock}
+                  className={`flex items-center gap-3 p-2 rounded-lg border transition-all text-left ${
+                    outOfStock
+                      ? 'bg-gray-900/40 border-gray-800/30 opacity-40 cursor-not-allowed'
+                      : 'bg-gray-800/60 border-gray-700/40 hover:border-purple-600/40'
+                  }`}
+                >
+                  <div
+                    className={`w-3 h-3 rounded-full flex-shrink-0 ${outOfStock ? 'opacity-30' : ''}`}
+                    style={{ backgroundColor: med.color, boxShadow: outOfStock ? 'none' : `0 0 8px ${med.color}40` }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-xs ${outOfStock ? 'text-gray-500' : 'text-gray-200'}`}>{med.name}</div>
+                    <div className={`text-[10px] ${outOfStock ? 'text-gray-600' : 'text-gray-500'}`}>{med.effect}</div>
+                  </div>
+                  <span className={`text-[10px] ${outOfStock ? 'text-red-600' : 'text-yellow-500'}`}>
+                    {outOfStock ? '缺货' : `${stock}份 · ${med.cost} ⬡`}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

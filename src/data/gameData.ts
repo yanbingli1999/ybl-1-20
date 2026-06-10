@@ -62,6 +62,25 @@ export type ActionType = 'examine' | 'medicate' | 'inject' | 'feed' | 'isolate'
 export type AccidentType = 'split' | 'float' | 'bite'
 export type GamePhase = 'idle' | 'diagnosing' | 'treating' | 'accident' | 'result'
 
+export interface TestScenario {
+  id: string
+  name: string
+  emoji: string
+  description: string
+  coins: number
+  equipmentStatus: Record<string, 'normal' | 'damaged'>
+  inventory: Record<string, number>
+  cases: PetCase[]
+}
+
+export const defaultInventory: Record<string, number> = {
+  stabilizer: 3,
+  gravity_pill: 3,
+  cosmic_kibble: 3,
+  soft_syrup: 3,
+  shine_serum: 3,
+}
+
 export interface DiagnosisResult {
   success: boolean
   diseaseName: string
@@ -233,3 +252,92 @@ export function generateTestCases(): PetCase[] {
     },
   ]
 }
+
+function makeScenarioCases(count: number, overrides: Partial<{ urgency: PetCase['urgency']; extraSymptoms: boolean }>[] = []): PetCase[] {
+  return Array.from({ length: count }, (_, i) => {
+    caseCounter++
+    const disease = diseases[i % diseases.length]
+    const breed = breeds[i % breeds.length]
+    const name = petNames[i % petNames.length]
+    const override = overrides[i] || {}
+    const urgency = override.urgency || 'medium'
+    const symptomIds = getSymptomsForDisease(disease.id)
+    const extra = override.extraSymptoms
+      ? symptoms.filter(s => !symptomIds.includes(s.id)).slice(0, 2).map(s => s.id)
+      : []
+    return {
+      id: `scenario_${Date.now()}_${caseCounter}`,
+      petName: name,
+      breedId: breed.id,
+      diseaseId: disease.id,
+      symptomIds: [...symptomIds, ...extra],
+      urgency,
+      status: 'waiting' as const,
+      examined: false,
+    }
+  })
+}
+
+export const testScenarios: TestScenario[] = [
+  {
+    id: 'low_funds',
+    name: '资金不足',
+    emoji: '💸',
+    description: '星币极度匮乏，每一步治疗都需要精打细算，稍有不慎便陷入困境',
+    coins: 5,
+    equipmentStatus: {},
+    inventory: { ...defaultInventory },
+    cases: makeScenarioCases(4),
+  },
+  {
+    id: 'damaged_equipment',
+    name: '设备损坏',
+    emoji: '🔧',
+    description: '关键诊疗设备严重损坏，需要筹措资金紧急修复才能正常运转',
+    coins: 200,
+    equipmentStatus: { scanner: 'damaged', injector: 'damaged' },
+    inventory: { ...defaultInventory },
+    cases: makeScenarioCases(4),
+  },
+  {
+    id: 'depleted_inventory',
+    name: '库存耗尽',
+    emoji: '📦',
+    description: '药品和食物储备全部告罄，无法进行任何用药和喂食操作',
+    coins: 200,
+    equipmentStatus: {},
+    inventory: { stabilizer: 0, gravity_pill: 0, cosmic_kibble: 0, soft_syrup: 0, shine_serum: 0 },
+    cases: makeScenarioCases(4),
+  },
+  {
+    id: 'high_pressure',
+    name: '连续高压',
+    emoji: '⚡',
+    description: '所有病例均为紧急状态，必须在极短时间内做出正确判断',
+    coins: 200,
+    equipmentStatus: {},
+    inventory: { ...defaultInventory },
+    cases: makeScenarioCases(5, [
+      { urgency: 'high' },
+      { urgency: 'high' },
+      { urgency: 'high' },
+      { urgency: 'high' },
+      { urgency: 'high' },
+    ]),
+  },
+  {
+    id: 'misdiagnosis',
+    name: '误诊事故',
+    emoji: '⚠️',
+    description: '病例带有误导性额外症状，极易误判病因，需要仔细辨别',
+    coins: 200,
+    equipmentStatus: {},
+    inventory: { ...defaultInventory },
+    cases: makeScenarioCases(4, [
+      { extraSymptoms: true },
+      { extraSymptoms: true },
+      { extraSymptoms: true },
+      { extraSymptoms: true },
+    ]),
+  },
+]
